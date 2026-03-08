@@ -373,15 +373,15 @@ function luckfox_load_cfg() {
 	fi
 
 	# CSI ( Priority is lower than RGB )
-	# value=$(luckfox_get_pin_cfg "CSI_ENABLE")
-	# if [ -z "$value" ]; then
-	# 	if [ "$LUCKFOX_CHIP_MODEL" == "Luckfox Pico Ultra" ] || [ "$LUCKFOX_CHIP_MODEL" == "Luckfox Pico Ultra W" ]; then
-	# 		luckfox_set_pin_mark "I2C4_M1_SCL" 1
-	# 		luckfox_set_pin_mark "I2C4_M1_SDA" 1
-	# 		luckfox_set_pin_mark "I2C4_M0_SCL" 1
-	# 		luckfox_set_pin_mark "I2C4_M0_SDA" 1
-	# 	fi
-	# fi
+	value=$(luckfox_get_pin_cfg "CSI_ENABLE")
+	if [ -z "$value" ]; then
+		if [ "$LUCKFOX_CHIP_MODEL" == "Luckfox Pico Ultra" ] || [ "$LUCKFOX_CHIP_MODEL" == "Luckfox Pico Ultra W" ]; then
+			luckfox_set_pin_mark "I2C4_M1_SCL" 1
+			luckfox_set_pin_mark "I2C4_M1_SDA" 1
+			luckfox_set_pin_mark "I2C4_M0_SCL" 1
+			luckfox_set_pin_mark "I2C4_M0_SDA" 1
+		fi
+	fi
 
 	# FBTFT
 	value=$(luckfox_get_pin_cfg "FBTFT_ENABLE")

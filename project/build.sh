@@ -161,7 +161,7 @@ function choose_target_board() {
 		"RV1106_Luckfox_Pico_86Panel_W"
 		"RV1106_Luckfox_Pico_Zero")
 	local LF_BOOT_MEDIA=("SD_CARD" "SPI_NAND" "EMMC")
-	local LF_SYSTEM=("Buildroot" "Custom")
+	local LF_SYSTEM=("Buildroot" "Ubuntu" "Custom")
 	local cnt=0 space8="        "
 
 	# Get Hardware Version
@@ -321,11 +321,12 @@ function choose_target_board() {
 
 	if (("$BM_INDEX" == 1)); then
 		echo "${space8}${space8}[0] Buildroot "
-		read -p "Which would you like? [0][default:0]: " SYS_INDEX
+		read -p "Which would you like? [0~1][default:0]: " SYS_INDEX
 		MAX_SYS_INDEX=0
 	elif (("$BM_INDEX" == 0)); then
 		echo "${space8}${space8}[0] Buildroot "
-		read -p "Which would you like? [0][default:0]: " SYS_INDEX
+		echo "${space8}${space8}[1] Ubuntu "
+		read -p "Which would you like? [0~1][default:0]: " SYS_INDEX
 		MAX_SYS_INDEX=1
 	fi
 
@@ -354,7 +355,7 @@ function choose_target_board() {
 function build_select_board() {
 	RK_TARGET_BOARD_ARRAY=($(
 		cd ${TARGET_PRODUCT_DIR}/
-		ls BoardConfig_*/BoardConfig*.mk | sort 
+		ls BoardConfig*.mk BoardConfig_*/BoardConfig*.mk | sort
 	))
 
 	RK_TARGET_BOARD_ARRAY_LEN=${#RK_TARGET_BOARD_ARRAY[@]}
@@ -1507,6 +1508,12 @@ function __PACKAGE_ROOTFS() {
 		exit 0
 	fi
 
+	if [ "$RK_BOOT_MEDIUM" == "emmc" ] && [ "$LF_TARGET_ROOTFS" == "ubuntu" ]; then
+		if [ -f $WIFI_CONF ]; then
+			cp $WIFI_CONF $RK_PROJECT_PACKAGE_ROOTFS_DIR/etc
+		fi
+	fi
+
 	if [ "$LF_TARGET_ROOTFS" == "buildroot" ] || [ "$LF_TARGET_ROOTFS" == "busybox" ]; then
 		build_get_sdk_version
 		cat >$RK_PROJECT_PACKAGE_ROOTFS_DIR/bin/sdkinfo <<EOF
@@ -2155,6 +2162,10 @@ __GET_BOOTARGS_FROM_BOARD_CFG() {
 __LINK_DEFCONFIG_FROM_BOARD_CFG() {
 	mkdir -p ${SDK_CONFIG_DIR}
 
+	if [[ "$LF_TARGET_ROOTFS" == "ubuntu" ]]; then
+		sudo chmod a+rw $SDK_CONFIG_DIR
+	fi
+
 	if [ -n "$RK_KERNEL_DTS" ]; then
 		rm -f $DTS_CONFIG
 		ln -rfs $SDK_SYSDRV_DIR/source/kernel/arch/arm/boot/dts/$RK_KERNEL_DTS $DTS_CONFIG
@@ -2650,6 +2661,10 @@ function build_save() {
 		build_info >>$STUB_PATH/build_info.txt
 		echo "save to $STUB_PATH"
 
+		if [[ "$LF_TARGET_ROOTFS" == "ubuntu" ]]; then
+			sudo chmod a+rw $STUB_PARENT_PATH
+		fi
+
 		;;
 	esac
 
@@ -2741,6 +2756,20 @@ __LINK_DEFCONFIG_FROM_BOARD_CFG
 export RK_PROJECT_BOARD_DIR=$(dirname $(realpath $BOARD_CONFIG))
 export RK_PROJECT_TOOLCHAIN_CROSS=$RK_TOOLCHAIN_CROSS
 export PATH="${SDK_ROOT_DIR}/tools/linux/toolchain/${RK_PROJECT_TOOLCHAIN_CROSS}/bin":$PATH
+
+if [[ "$LF_TARGET_ROOTFS" = "ubuntu" ]]; then
+	if [ "$(id -u)" != "0" ]; then
+		msg_error "Error! Please use sudo ./build.sh to build Ubuntu Image!"
+		exit 1
+	fi
+
+	if [ -d "$UBUNTU_DIR" ] && [ -f ${UBUNTU_DIR}/luckfox-ubuntu-22.04.3.tar.gz.md5 ]; then
+		msg_info "${UBUNTU_DIR} is not empty, skipping submodule update!"
+	else
+		msg_info "${UBUNTU_DIR} is empty or does not exist, updating submodule!"
+		git submodule update --init --recursive
+	fi
+fi
 
 if echo $@ | grep -wqE "help|-h"; then
 	if [ -n "$2" -a "$(type -t usage$2)" == function ]; then
